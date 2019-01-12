@@ -59,7 +59,7 @@ ny_entry = Entry(window,width=10)
 ny_entry.grid(column=3, row=4)
 
 
-client = ModbusSerialClient('ascii',port='COM7',stopbits=1,bytesize=7,parity='E',baudrate=9600)
+client = ModbusSerialClient('ascii',port='COM11',stopbits=1,bytesize=7,parity='E',baudrate=9600)
 
 slave_add = 0x01
 status_flag_add = 2048
@@ -91,7 +91,7 @@ def hm_func():
     print("homming")
 
 def go_func():
-    gx = int(go_y_entry.get())
+    gx = int(go_x_entry.get())
     gy = int(go_y_entry.get())
 
     if gx < 0:
@@ -110,7 +110,7 @@ def go_func():
             time.sleep(0.01)
             client.write_registers(count_add, gx*scale, unit=slave_add)
             time.sleep(0.01)
-            client.write_registers(dir_flag_add, dir_flag, unit=slave_add)
+            client.write_coil(dir_flag_add, dir_flag, unit=slave_add)
             time.sleep(0.01)
             client.write_coil(run_flag_add, 1, unit=slave_add)
             break
@@ -134,7 +134,7 @@ def go_func():
             time.sleep(0.01)
             client.write_registers(count_add, gy*scale, unit=slave_add)
             time.sleep(0.01)
-            client.write_registers(dir_flag_add, dir_flag, unit=slave_add)
+            client.write_coil(dir_flag_add, dir_flag, unit=slave_add)
             time.sleep(0.01)
             client.write_coil(run_flag_add, 1, unit=slave_add)
             break
