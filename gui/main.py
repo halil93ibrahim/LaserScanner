@@ -1,6 +1,18 @@
 import threading
 import time
 from tkinter import *
+from pymodbus.client.sync import ModbusSerialClient
+
+def num2bits(num):
+    b = bin(num)[2:]
+    b = (16 - len(b)) * '0' + b
+    bin_list = []
+    for i in range(16):
+        if b[15-i] == '1':
+            bin_list.append(True)
+        else:
+            bin_list.append(False)
+    return bin_list
 
 window = Tk()
 
@@ -47,6 +59,16 @@ ny_entry = Entry(window,width=10)
 ny_entry.grid(column=3, row=4)
 
 
+client = ModbusSerialClient('ascii',port='COM7',stopbits=1,bytesize=7,parity='E',baudrate=9600)
+
+slave_add = 0x01
+status_flag_add = 2048
+run_flag_add = 2049
+motor_flag_add = 2050
+dir_flag_add = 2051
+count_add = 3584
+scale = 80
+
 def strt_func():
     dir = 1
     nx = int(nx_entry.get())
@@ -71,9 +93,56 @@ def hm_func():
 def go_func():
     gx = int(go_y_entry.get())
     gy = int(go_y_entry.get())
-    print(gx, gy)
-    print("going")
 
+    if gx < 0:
+        dir_flag = 0
+        gx = -1*gx
+    else:
+        dir_flag = 1
+
+    motor_flag = 1
+
+    while 1:
+        result = client.read_coils(status_flag_add, 1, unit=slave_add)
+        if result.bits[0] != True:
+            print('going in x')
+            client.write_coil(motor_flag_add, motor_flag, unit=slave_add)
+            time.sleep(0.01)
+            client.write_registers(count_add, gx*scale, unit=slave_add)
+            time.sleep(0.01)
+            client.write_registers(dir_flag_add, dir_flag, unit=slave_add)
+            time.sleep(0.01)
+            client.write_coil(run_flag_add, 1, unit=slave_add)
+            break
+        else:
+            print('motor is busy')
+            time.sleep(0.01)
+
+    if gy < 0:
+        dir_flag = 0
+        gy = -1 * gy
+    else:
+        dir_flag = 1
+
+    motor_flag = 0
+
+    while 1:
+        result = client.read_coils(status_flag_add, 1, unit=slave_add)
+        if result.bits[0] != True:
+            print('going in y')
+            client.write_coil(motor_flag_add, motor_flag, unit=slave_add)
+            time.sleep(0.01)
+            client.write_registers(count_add, gy*scale, unit=slave_add)
+            time.sleep(0.01)
+            client.write_registers(dir_flag_add, dir_flag, unit=slave_add)
+            time.sleep(0.01)
+            client.write_coil(run_flag_add, 1, unit=slave_add)
+            break
+        else:
+            print('motor is busy')
+            time.sleep(0.01)
+
+    print(gx, gy)
 
 # strt = Button(window, text="Start", command=strt_func)
 # strt.grid(column=1, row=5)
