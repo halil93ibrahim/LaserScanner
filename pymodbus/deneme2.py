@@ -13,8 +13,9 @@ def num2bits(num):
     return bin_list
 
 
-client = ModbusSerialClient('ascii',port='COM3',stopbits=1,bytesize=7,parity='E',baudrate=9600)
-client.write_coils(2048,num2bits(514),unit=0x01)
-result = client.read_coils(2048,16,unit=0x01)
+client = ModbusSerialClient('ascii',port='COM11',stopbits=1,bytesize=7,parity='E',baudrate=9600)
+# client.write_coils(2048, num2bits(1), unit=0x01)
+client.write_coil(2048, 1, unit=0x01)
+result = client.read_coils(2049,16,unit=0x01)
 print(result.bits)
 client.close()
