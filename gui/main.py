@@ -58,16 +58,18 @@ lbly1.grid(column=2, row=4)
 ny_entry = Entry(window,width=10)
 ny_entry.grid(column=3, row=4)
 
-
-client = ModbusSerialClient('ascii',port='COM11',stopbits=1,bytesize=7,parity='E',baudrate=9600)
-
-slave_add = 0x01
+mb_com = 'COM11'
+plc_mb_add = 0x02
+dtc_mb_add = 0x01
 status_flag_add = 2048
 run_flag_add = 2049
 motor_flag_add = 2050
 dir_flag_add = 2051
 count_add = 3584
 scale = 80
+
+client = ModbusSerialClient('ascii',port=mb_com,stopbits=1,bytesize=7,parity='E',baudrate=9600)
+
 
 def strt_func():
     dir = 1
@@ -103,16 +105,16 @@ def go_func():
     motor_flag = 1
 
     while 1:
-        result = client.read_coils(status_flag_add, 1, unit=slave_add)
+        result = client.read_coils(status_flag_add, 1, unit=plc_mb_add)
         if result.bits[0] != True:
             print('going in x')
-            client.write_coil(motor_flag_add, motor_flag, unit=slave_add)
+            client.write_coil(motor_flag_add, motor_flag, unit=plc_mb_add)
             time.sleep(0.01)
-            client.write_registers(count_add, gx*scale, unit=slave_add)
+            client.write_registers(count_add, gx*scale, unit=plc_mb_add)
             time.sleep(0.01)
-            client.write_coil(dir_flag_add, dir_flag, unit=slave_add)
+            client.write_coil(dir_flag_add, dir_flag, unit=plc_mb_add)
             time.sleep(0.01)
-            client.write_coil(run_flag_add, 1, unit=slave_add)
+            client.write_coil(run_flag_add, 1, unit=plc_mb_add)
             break
         else:
             print('motor is busy')
@@ -127,22 +129,25 @@ def go_func():
     motor_flag = 0
 
     while 1:
-        result = client.read_coils(status_flag_add, 1, unit=slave_add)
+        result = client.read_coils(status_flag_add, 1, unit=plc_mb_add)
         if result.bits[0] != True:
             print('going in y')
-            client.write_coil(motor_flag_add, motor_flag, unit=slave_add)
+            client.write_coil(motor_flag_add, motor_flag, unit=plc_mb_add)
             time.sleep(0.01)
-            client.write_registers(count_add, gy*scale, unit=slave_add)
+            client.write_registers(count_add, gy*scale, unit=plc_mb_add)
             time.sleep(0.01)
-            client.write_coil(dir_flag_add, dir_flag, unit=slave_add)
+            client.write_coil(dir_flag_add, dir_flag, unit=plc_mb_add)
             time.sleep(0.01)
-            client.write_coil(run_flag_add, 1, unit=slave_add)
+            client.write_coil(run_flag_add, 1, unit=plc_mb_add)
             break
         else:
             print('motor is busy')
             time.sleep(0.01)
 
     print(gx, gy)
+
+def read_laser_func():
+    pass
 
 # strt = Button(window, text="Start", command=strt_func)
 # strt.grid(column=1, row=5)
@@ -192,5 +197,8 @@ strt.grid(column=1, row=5)
 #Say this is the exit button
 stp = Button(window, text="Stop",command=lambda: myEvent.set())
 stp.grid(column=2, row=5)
+
+read_laser = Button(window, text="Read Laser",command=read_laser_func)
+read_laser.grid(column=2, row=6)
 
 window.mainloop()
