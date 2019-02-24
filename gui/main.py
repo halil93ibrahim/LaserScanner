@@ -3,23 +3,28 @@ from pymodbus.client.sync import ModbusSerialClient
 import time
 import threading
 import queue
+import numpy as np
+import datetime
 
-mb_com = 'COM6'
+
+mb_com = 'COM5'
 plc_mb_add = 0x02
 dtc_mb_add = 0x01
-laser_read_add = 2048
+laser_read_add = 4096
 status_flag_add = 2048
 run_flag_add = 2049
 motor_flag_add = 2050
 dir_flag_add = 2051
 stop_flag_add = 2052
-count_add = 3784-1
+count_add = 3584
+count_add1 = 3585
 scale = 80
 
 class GuiPart:
     def __init__(self, master, queue, strt_fnc, stp_fnc, go_fnc, hm_fnc, read_laser_fnc):
         self.queue = queue
 
+        # buttons
         strt = Button(window, text="Start", command=strt_fnc)
         strt.grid(column=1, row=5)
         stp = Button(window, text="Stop", command=stp_fnc)
@@ -31,20 +36,16 @@ class GuiPart:
         read_laser = Button(window, text="Read Laser", command=read_laser_fnc)
         read_laser.grid(column=5, row=5)
 
-    # def processIncoming(self):
-    #     """Handle all messages currently in the queue, if any."""
-    #     msg = 10
-    #     self.queue.put(msg)
-
 class ThreadedClient:
-    state = 0
-    count = 0
-    success = 0
-    motor_flag = 0
-    dir_flag = 0
+
+    state = 0       # state of the process
+    count = 0       # distance in mm
+    success = 0     # indicate whether motor reaches its destination
+    motor_flag = 0  # chose a motor to drive, 1 for motor in x, 0 for motor in y
+    dir_flag = 0    # direction of a motor, 1 for pos, 0 for neg
 
     def __init__(self, master, plc_mb_add, dtc_mb_add, status_flag_add, run_flag_add,
-                 motor_flag_add, dir_flag_add, stop_flag_add, count_add, scale, laser_read_add):
+                 motor_flag_add, dir_flag_add, stop_flag_add, count_add, count_add1, scale, laser_read_add):
 
         self.master = master
         self.queue = queue.Queue()
@@ -56,60 +57,69 @@ class ThreadedClient:
         self.dir_flag_add = dir_flag_add
         self.stop_flag_add = stop_flag_add
         self.count_add = count_add
+        self.count_add1 = count_add1
         self.scale = scale
         self.laser_read_add = laser_read_add
-        self.gui = GuiPart(master, self.queue, self.strt_func, self.stp_func,
-                           self.go_func, self.hm_func, self.read_laser_fnc)
-        self.running = 1
+        self.gui = GuiPart(master, self.queue, self.strt_func, self.stp_func, self.go_func, self.hm_func,
+                           self.read_laser_fnc)
+        self.running = 0
         self.thread1 = threading.Thread(target=self.workerThread1)
         self.thread1.start()
 
-        # self.periodicCall()
-
-    # def periodicCall(self):
-    #     """
-    #     Check every 200 ms if there is something new in the queue.
-    #     """
-    #     self.gui.processIncoming()
-    #     if not self.running:
-    #         # This is the brutal stop of the system. You may want to do
-    #         # some cleanup before actually shutting it down.
-    #         import sys
-    #         sys.exit(1)
-    #     self.master.after(200, self.periodicCall)
-
     def workerThread1(self):
 
-        while self.running:
+        # thread works in a infinite loop
+        while 1:
             time.sleep(0.1)
             # scan grid
             if self.state == 1:
-                dir = 1
-                nx = int(nx_entry.get())
-                ny = int(ny_entry.get())
-                x_res = int(x_res_entry.get())
-                y_res = int(y_res_entry.get())
+                dir = True                      # set direction to pos
+                nx = int(nx_entry.get())        # number of data points in x
+                ny = int(ny_entry.get())        # number of data points in y
+                x_res = int(x_res_entry.get())  # measurement resolution in x
+                y_res = int(y_res_entry.get())  # measurement resolution in y
+                data = np.zeros((ny, nx))       # recorded data
 
                 for y in range(0, int(ny)):
-                    for x in range(0, int(nx)):
+                    for x in range(0, int(nx)-1):
+
+                        # read laser
+                        result = client.read_holding_registers(self.laser_read_add, count=1, unit=self.dtc_mb_add)
+                        if dir == True:
+                            index_x = x
+                        else:
+                            index_x = nx - 1 - x
+                        # record laser data
+                        data[y][index_x] = result.registers[0]
 
                         self.motor_flag = 1
                         self.count = x_res
                         self.dir_flag = dir
 
                         while self.success != 1 and self.running:
-                            # self.run_motor()
+                            self.run_motor()
                             time.sleep(0.1)
 
                         self.success = 0
 
                         if self.running == 0:
                             break
-                    else:
-                        continue
-                    break
+                    if self.running == 0:
+                        break
 
-                    dir = -1 * dir
+                    # read laser
+                    result = client.read_holding_registers(self.laser_read_add, count=1, unit=self.dtc_mb_add)
+                    if dir == True:
+                        index_x = x + 1
+                    else:
+                        index_x = nx - 1 - x - 1
+
+                    # record laser data
+                    data[y][index_x] = result.registers[0]
+
+
+                    # change direction in x for next row
+                    dir = not dir
 
                     if y != int(ny) - 1:
                         self.motor_flag = 0
@@ -117,12 +127,18 @@ class ThreadedClient:
                         self.dir_flag = 1
 
                         while self.success != 1 and self.running:
-                            # self.run_motor()
+                            self.run_motor()
                             time.sleep(0.1)
 
-                        self.success = 0
+                    self.success = 0
 
-                    self.state = 0
+                # save to a txt file
+                np.savetxt('data' + datetime.date.today().__str__() + '-' +
+                           datetime.datetime.now().timestamp().__str__() + '.txt', data)
+
+                # change state of the process
+                self.state = 0
+
 
             # homming
             if self.state == 2:
@@ -137,7 +153,7 @@ class ThreadedClient:
                 self.motor_flag = 1  # choose motor in x direction
 
                 while self.success != 1 and self.running:
-                    # self.run_motor()
+                    self.run_motor()
                     time.sleep(0.1)
 
                 self.success = 0
@@ -153,7 +169,7 @@ class ThreadedClient:
                 self.motor_flag = 0  # choose motor in x direction
 
                 while self.success != 1 and self.running:
-                    # self.run_motor()
+                    self.run_motor()
                     time.sleep(0.1)
 
                 self.success = 0
@@ -173,7 +189,7 @@ class ThreadedClient:
                 self.motor_flag = 1  # choose motor in x direction
 
                 while self.success != 1 and self.running:
-                    # self.run_motor()
+                    self.run_motor()
                     time.sleep(0.1)
 
                 self.success = 0
@@ -186,10 +202,10 @@ class ThreadedClient:
                 else:
                     self.dir_flag = 1
 
-                self.motor_flag = 0  # choose motor in x direction
+                self.motor_flag = 0  # choose motor in y direction
 
                 while self.success != 1 and self.running:
-                    # self.run_motor()
+                    self.run_motor()
                     time.sleep(0.1)
 
                 self.success = 0
@@ -200,7 +216,7 @@ class ThreadedClient:
         self.state = 1
 
     def stp_func(self):
-        # client.write_coil(self.stop_flag_add, 1, unit=self.plc_mb_add)
+        client.write_coil(self.stop_flag_add, 1, unit=self.plc_mb_add)
         self.running = 0
 
     def hm_func(self):
@@ -213,20 +229,49 @@ class ThreadedClient:
 
     def run_motor(self):
         result = client.read_coils(self.status_flag_add, 1, unit=self.plc_mb_add)
-        if result.bits[0] != True:
+        if result.bits[0] == False:
             client.write_coil(self.motor_flag_add, self.motor_flag, unit=self.plc_mb_add)
             time.sleep(0.01)
-            client.write_registers(self.count_add, self.count * self.scale, unit=self.plc_mb_add)
-            print(self.count*self.scale)
+            step_value = self.count * self.scale
+            client.write_registers(self.count_add, step_value % 65535, unit=self.plc_mb_add)
+            time.sleep(0.01)
+            client.write_registers(self.count_add1, int(step_value / 65535), unit=self.plc_mb_add)
             time.sleep(0.01)
             client.write_coil(self.dir_flag_add, self.dir_flag, unit=self.plc_mb_add)
             time.sleep(0.01)
             client.write_coil(self.run_flag_add, 1, unit=self.plc_mb_add)
+            time.sleep(0.01)
+            result = client.read_coils(self.status_flag_add, 1, unit=self.plc_mb_add)
+
+            while result.bits[0] == True:
+                result = client.read_coils(self.status_flag_add, 1, unit=self.plc_mb_add)
+                time.sleep(0.01)
+
             self.success = 1
         else:
             self.success = 0
+
     def read_laser_fnc(self):
-        print(client.read_holding_registers(self.laser_read_add, unit=self.dtc_mb_add))
+        # result = client.read_holding_registers(self.laser_read_add, unit=self.dtc_mb_add)
+        # print(result.registers[0])
+
+        self.motor_flag = 0
+        self.count = 100
+        self.dir_flag = 1
+        self.running = 1
+        while self.success != 1 and self.running:
+            self.run_motor()
+        data = np.zeros(100)
+
+        for i in range(0, 100):
+            result = client.read_holding_registers(self.laser_read_add, unit=self.dtc_mb_add)
+            data[i] = result.registers[0]
+            time.clock_settime_ns()
+            # time.sleep(0.01)
+            time.time_ns()
+        # save to a txt file
+        np.savetxt('data' + datetime.date.today().__str__() + '-' +
+                   datetime.datetime.now().timestamp().__str__() + '.txt', data)
 
 window = Tk()
 
@@ -272,12 +317,10 @@ lbly1.grid(column=2, row=4)
 ny_entry = Entry(window,width=10)
 ny_entry.grid(column=3, row=4)
 
-termf = Frame(window, height=400, width=500)
-wid = termf.winfo_id()
-os.system('xterm -into %d -geometry 40x20 -sb &' % wid)
-
+# Create a thread for the process
 th_client = ThreadedClient(window, plc_mb_add, dtc_mb_add, status_flag_add, run_flag_add,
-                 motor_flag_add, dir_flag_add, stop_flag_add, count_add, scale, laser_read_add)
+                 motor_flag_add, dir_flag_add, stop_flag_add, count_add, count_add1, scale, laser_read_add)
 
+# Set Modbus Client
 client = ModbusSerialClient('ascii',port=mb_com,stopbits=1,bytesize=7,parity='E',baudrate=9600)
 window.mainloop()
