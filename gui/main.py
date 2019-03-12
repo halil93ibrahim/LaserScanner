@@ -7,7 +7,7 @@ import numpy as np
 import datetime
 
 
-mb_com = 'COM5'
+mb_com = 'COM12'
 plc_mb_add = 0x02
 dtc_mb_add = 0x01
 laser_read_add = 4096
@@ -322,5 +322,5 @@ th_client = ThreadedClient(window, plc_mb_add, dtc_mb_add, status_flag_add, run_
                  motor_flag_add, dir_flag_add, stop_flag_add, count_add, count_add1, scale, laser_read_add)
 
 # Set Modbus Client
-client = ModbusSerialClient('ascii',port=mb_com,stopbits=1,bytesize=7,parity='E',baudrate=9600)
+client = ModbusSerialClient('ascii', port=mb_com, stopbits=1, bytesize=7, parity='E', baudrate=9600)
 window.mainloop()
