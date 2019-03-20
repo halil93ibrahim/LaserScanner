@@ -7,7 +7,7 @@ import numpy as np
 import datetime
 
 
-mb_com = 'COM12'
+mb_com = 'COM3'
 plc_mb_add = 0x02
 dtc_mb_add = 0x01
 laser_read_add = 4096
@@ -19,22 +19,27 @@ stop_flag_add = 2052
 count_add = 3584
 count_add1 = 3585
 scale = 80
+lower_bound = 290
+upper_bound = 1400
 
 class GuiPart:
-    def __init__(self, master, queue, strt_fnc, stp_fnc, go_fnc, hm_fnc, read_laser_fnc):
+    def __init__(self, master, frame1, frame2, queue, strt_fnc, stp_fnc, go_fnc, hm_fnc, read_laser_fnc):
         self.queue = queue
 
         # buttons
-        strt = Button(window, text="Start", command=strt_fnc)
+        strt = Button(frame2, text="Start", command=strt_fnc)
         strt.grid(column=1, row=5)
-        stp = Button(window, text="Stop", command=stp_fnc)
+        stp = Button(frame2, text="Stop", command=stp_fnc)
         stp.grid(column=2, row=5)
-        go = Button(window, text="Go", command=go_fnc)
+        go = Button(frame1, text="Go", command=go_fnc)
         go.grid(column=3, row=5)
-        hm = Button(window, text="Home", command=hm_fnc)
+        hm = Button(frame1, text="Home", command=hm_fnc)
         hm.grid(column=4, row=5)
-        read_laser = Button(window, text="Read Laser", command=read_laser_fnc)
+        read_laser = Button(frame1, text="Read Laser", command=read_laser_fnc)
         read_laser.grid(column=5, row=5)
+
+
+
 
 class ThreadedClient:
 
@@ -44,10 +49,12 @@ class ThreadedClient:
     motor_flag = 0  # chose a motor to drive, 1 for motor in x, 0 for motor in y
     dir_flag = 0    # direction of a motor, 1 for pos, 0 for neg
 
-    def __init__(self, master, plc_mb_add, dtc_mb_add, status_flag_add, run_flag_add,
+    def __init__(self, master, frame1, frame2, plc_mb_add, dtc_mb_add, status_flag_add, run_flag_add,
                  motor_flag_add, dir_flag_add, stop_flag_add, count_add, count_add1, scale, laser_read_add):
 
         self.master = master
+        self.frame1 = frame1
+        self.frame2 = frame2
         self.queue = queue.Queue()
         self.plc_mb_add = plc_mb_add
         self.dtc_mb_add = dtc_mb_add
@@ -60,7 +67,7 @@ class ThreadedClient:
         self.count_add1 = count_add1
         self.scale = scale
         self.laser_read_add = laser_read_add
-        self.gui = GuiPart(master, self.queue, self.strt_func, self.stp_func, self.go_func, self.hm_func,
+        self.gui = GuiPart(master, self.frame1, self.frame2, self.queue, self.strt_func, self.stp_func, self.go_func, self.hm_func,
                            self.read_laser_fnc)
         self.running = 0
         self.thread1 = threading.Thread(target=self.workerThread1)
@@ -84,13 +91,15 @@ class ThreadedClient:
                     for x in range(0, int(nx)-1):
 
                         # read laser
+                        time.sleep(0.1)
+
                         result = client.read_holding_registers(self.laser_read_add, count=1, unit=self.dtc_mb_add)
                         if dir == True:
                             index_x = x
                         else:
                             index_x = nx - 1 - x
                         # record laser data
-                        data[y][index_x] = result.registers[0]
+                        data[y][index_x] = result.registers[0]/(2**14-1)*(upper_bound-lower_bound)+lower_bound
 
                         self.motor_flag = 1
                         self.count = x_res
@@ -279,46 +288,58 @@ window.title("Laser Scanner GUI")
 
 window.geometry('550x200')
 
-lblg = Label(window, text="Set Initial Position")
+lblg = Label(window, text="Manual Control")
 lblg.grid(column=0, row=0)
 
-lblgx = Label(window, text="X(mm):")
-lblgx.grid(column=0, row=1)
-go_x_entry = Entry(window,width=10)
-go_x_entry.grid(column=1, row=1)
+frame1=Frame(window, width=200, height=150,bd=2, relief=SUNKEN)
+frame1.grid(row=1, column=0)
 
-lblgy = Label(window, text="Y(mm):")
-lblgy.grid(column=2, row=1)
-go_y_entry = Entry(window,width=10)
-go_y_entry.grid(column=3, row=1)
-
-lblstg = Label(window, text="Settings")
+lblstg = Label(window, text="Grid Scan")
 lblstg.grid(column=0, row=2)
 
-lblx = Label(window, text="X Resolution (mm):")
+frame2=Frame(window, width=200, height=150,bd=2, relief=SUNKEN)
+frame2.grid(row=3, column=0)
+
+
+lblgx = Label(frame1, text="X(mm):")
+lblgx.grid(column=0, row=1)
+go_x_entry = Entry(frame1,width=10)
+go_x_entry.grid(column=1, row=1)
+
+lblgy = Label(frame1, text="Y(mm):")
+lblgy.grid(column=2, row=1)
+go_y_entry = Entry(frame1,width=10)
+go_y_entry.grid(column=3, row=1)
+
+
+
+lblx = Label(frame2, text="X Resolution (mm):")
 lblx.grid(column=0, row=3)
-x_res_entry = Entry(window,width=10)
+x_res_entry = Entry(frame2,width=10)
 x_res_entry.grid(column=1, row=3)
 
 
-lblx1 = Label(window, text="# Data Point In X:")
+lblx1 = Label(frame2, text="# Data Point In X:")
 lblx1.grid(column=2, row=3)
-nx_entry = Entry(window,width=10)
+nx_entry = Entry(frame2,width=10)
 nx_entry.grid(column=3, row=3)
 
-lbly = Label(window, text="Y Resolution (mm):")
+lbly = Label(frame2, text="Y Resolution (mm):")
 lbly.grid(column=0, row=4)
-y_res_entry = Entry(window,width=10)
+y_res_entry = Entry(frame2,width=10)
 y_res_entry.grid(column=1, row=4)
 
 
-lbly1 = Label(window, text="# Data Point In Y:")
+lbly1 = Label(frame2, text="# Data Point In Y:")
 lbly1.grid(column=2, row=4)
-ny_entry = Entry(window,width=10)
+ny_entry = Entry(frame2,width=10)
 ny_entry.grid(column=3, row=4)
 
+
+
+
 # Create a thread for the process
-th_client = ThreadedClient(window, plc_mb_add, dtc_mb_add, status_flag_add, run_flag_add,
+th_client = ThreadedClient(window, frame1, frame2, plc_mb_add, dtc_mb_add, status_flag_add, run_flag_add,
                  motor_flag_add, dir_flag_add, stop_flag_add, count_add, count_add1, scale, laser_read_add)
 
 # Set Modbus Client
