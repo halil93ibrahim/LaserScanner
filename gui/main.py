@@ -27,16 +27,18 @@ class GuiPart:
         self.queue = queue
 
         # buttons
-        strt = Button(frame2, text="Start", command=strt_fnc)
-        strt.grid(column=1, row=5)
-        stp = Button(frame2, text="Stop", command=stp_fnc)
-        stp.grid(column=2, row=5)
-        go = Button(frame1, text="Go", command=go_fnc)
-        go.grid(column=3, row=5)
-        hm = Button(frame1, text="Home", command=hm_fnc)
-        hm.grid(column=4, row=5)
-        read_laser = Button(frame1, text="Read Laser", command=read_laser_fnc)
-        read_laser.grid(column=5, row=5)
+        strt = Button(frame2, text="Start", command=strt_fnc, width=10)
+        strt.grid(column=1, row=2, padx=10, pady=10)
+        stp = Button(frame2, text="Stop", command=stp_fnc, width=10)
+        stp.grid(column=2, row=2, padx=10, pady=10)
+        go = Button(frame1, text="Go", command=go_fnc, width=10)
+        go.grid(column=0, row=1, padx=10, pady=10)
+        stp1 = Button(frame1, text="Stop", command=stp_fnc, width=10)
+        stp1.grid(column=1, row=1, padx=10, pady=10)
+        hm = Button(frame1, text="Home", command=hm_fnc, width=10)
+        hm.grid(column=3, row=1, padx=10, pady=10)
+        read_laser = Button(frame1, text="Read Laser", command=read_laser_fnc, width=10)
+        read_laser.grid(column=2, row=1, padx=10, pady=10)
 
 
 
@@ -261,79 +263,79 @@ class ThreadedClient:
             self.success = 0
 
     def read_laser_fnc(self):
-        # result = client.read_holding_registers(self.laser_read_add, unit=self.dtc_mb_add)
-        # print(result.registers[0])
+        result = client.read_holding_registers(self.laser_read_add, unit=self.dtc_mb_add)
+        print(result.registers[0])
 
-        self.motor_flag = 0
-        self.count = 100
-        self.dir_flag = 1
-        self.running = 1
-        while self.success != 1 and self.running:
-            self.run_motor()
-        data = np.zeros(100)
-
-        for i in range(0, 100):
-            result = client.read_holding_registers(self.laser_read_add, unit=self.dtc_mb_add)
-            data[i] = result.registers[0]
-            time.clock_settime_ns()
-            # time.sleep(0.01)
-            time.time_ns()
-        # save to a txt file
-        np.savetxt('data' + datetime.date.today().__str__() + '-' +
-                   datetime.datetime.now().timestamp().__str__() + '.txt', data)
+        # self.motor_flag = 0
+        # self.count = 100
+        # self.dir_flag = 1
+        # self.running = 1
+        # while self.success != 1 and self.running:
+        #     self.run_motor()
+        # data = np.zeros(100)
+        #
+        # for i in range(0, 100):
+        #     result = client.read_holding_registers(self.laser_read_add, unit=self.dtc_mb_add)
+        #     data[i] = result.registers[0]
+        #     time.clock_settime_ns()
+        #     # time.sleep(0.01)
+        #     time.time_ns()
+        # # save to a txt file
+        # np.savetxt('data' + datetime.date.today().__str__() + '-' +
+        #            datetime.datetime.now().timestamp().__str__() + '.txt', data)
 
 window = Tk()
 
 window.title("Laser Scanner GUI")
 
-window.geometry('550x200')
+window.geometry('450x300')
 
 lblg = Label(window, text="Manual Control")
-lblg.grid(column=0, row=0)
+lblg.grid(column=0, row=0, padx=10, pady=10)
 
-frame1=Frame(window, width=200, height=150,bd=2, relief=SUNKEN)
-frame1.grid(row=1, column=0)
+frame1=Frame(window, width=450, height=300,bd=2, relief=SUNKEN)
+frame1.grid(row=1, column=0, padx=10)
 
-lblstg = Label(window, text="Grid Scan")
-lblstg.grid(column=0, row=2)
+lblstg = Label(window, text="Grid Scanning")
+lblstg.grid(column=0, row=2, padx=10, pady=10)
 
-frame2=Frame(window, width=200, height=150,bd=2, relief=SUNKEN)
-frame2.grid(row=3, column=0)
+frame2=Frame(window, width=450, height=300,bd=2, relief=SUNKEN)
+frame2.grid(row=3, column=0, padx=10)
 
 
 lblgx = Label(frame1, text="X(mm):")
-lblgx.grid(column=0, row=1)
+lblgx.grid(column=0, row=0, pady=10)
 go_x_entry = Entry(frame1,width=10)
-go_x_entry.grid(column=1, row=1)
+go_x_entry.grid(column=1, row=0)
 
 lblgy = Label(frame1, text="Y(mm):")
-lblgy.grid(column=2, row=1)
+lblgy.grid(column=2, row=0)
 go_y_entry = Entry(frame1,width=10)
-go_y_entry.grid(column=3, row=1)
+go_y_entry.grid(column=3, row=0)
 
 
 
 lblx = Label(frame2, text="X Resolution (mm):")
-lblx.grid(column=0, row=3)
+lblx.grid(column=0, row=0, padx=10, pady=10)
 x_res_entry = Entry(frame2,width=10)
-x_res_entry.grid(column=1, row=3)
+x_res_entry.grid(column=1, row=0)
 
 
 lblx1 = Label(frame2, text="# Data Point In X:")
-lblx1.grid(column=2, row=3)
+lblx1.grid(column=2, row=0, padx=10)
 nx_entry = Entry(frame2,width=10)
-nx_entry.grid(column=3, row=3)
+nx_entry.grid(column=3, row=0, padx=10)
 
 lbly = Label(frame2, text="Y Resolution (mm):")
-lbly.grid(column=0, row=4)
+lbly.grid(column=0, row=1)
 y_res_entry = Entry(frame2,width=10)
-y_res_entry.grid(column=1, row=4)
+y_res_entry.grid(column=1, row=1)
 
 
 lbly1 = Label(frame2, text="# Data Point In Y:")
-lbly1.grid(column=2, row=4)
+lbly1.grid(column=2, row=1)
 ny_entry = Entry(frame2,width=10)
-ny_entry.grid(column=3, row=4)
+ny_entry.grid(column=3, row=1)
 
 
 
