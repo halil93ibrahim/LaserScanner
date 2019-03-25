@@ -20,8 +20,13 @@ count_add = 3584
 count_add1 = 3585
 scale = 80
 lower_bound = 290
-upper_bound = 1400
-
+upper_bound = 1310
+adc_low = 1600
+adc_high = 9999
+# m = 1017.6/8359
+# b = 98.128322
+# 9978 1310.5
+# 1603 292.9
 
 class GuiPart:
     def __init__(self, master, frame1, frame2, queue, strt_fnc, stp_fnc, go_fnc, hm_fnc, read_laser_fnc):
@@ -100,8 +105,8 @@ class ThreadedClient:
                         else:
                             index_x = nx - 1 - x
                         # record laser data
-                        data[y][index_x] = result.registers[0] / (2 ** 14 - 1) * (
-                                upper_bound - lower_bound) + lower_bound
+                        data[y][index_x] = round((result.registers[0] - adc_low) / (adc_high - adc_low) *
+                                                 (upper_bound - lower_bound) + lower_bound, 2)
 
                         self.motor_flag = 1
                         self.count = x_res
@@ -126,7 +131,9 @@ class ThreadedClient:
                         index_x = nx - 1 - x - 1
 
                     # record laser data
-                    data[y][index_x] = result.registers[0]
+                    data[y][index_x] = round((result.registers[0] - adc_low) / (adc_high-adc_low) *
+                                             (upper_bound - lower_bound) + lower_bound, 2)
+                    # print(data[y][index_x])
 
                     # change direction in x for next row
                     dir = not dir
@@ -143,8 +150,10 @@ class ThreadedClient:
                     self.success = 0
 
                 # save to a txt file
+                # print(data)
+                dummy = data
                 np.savetxt('data' + datetime.date.today().__str__() + '-' +
-                           datetime.datetime.now().timestamp().__str__() + '.txt', data)
+                           datetime.datetime.now().timestamp().__str__() + '.txt', dummy,fmt="%.2f")
 
                 # change state of the process
                 self.state = 0
@@ -264,9 +273,8 @@ class ThreadedClient:
 
     def read_laser_fnc(self):
         result = client.read_holding_registers(self.laser_read_add, unit=self.dtc_mb_add)
-        print(result.registers[0])
-
-        # self.motor_flag = 0
+        print(round((result.registers[0] - adc_low) / (adc_high-adc_low) *
+                                             (upper_bound - lower_bound) + lower_bound, 2))
         # self.count = 100
         # self.dir_flag = 1
         # self.running = 1
