@@ -393,7 +393,9 @@ def donothing2():
 
 
 def donothing3():
-    messagebox.showinfo("About", "a Tk MessageBox")
+    messagebox.showinfo("About", "Developed by\n \tKARDELEN MÜHENDİSLİK VE OTOMASYON\n \tHalil Ibrahim Ugurlu\n "
+                                 "\tOsman Kaan Karagoz\n Report bugs or request enhancements to:\n "
+                                 "\thalil93ibrahim@gmail.com\n \tkaragozosmankaan@gmail.com")
 
 
 menubar = Menu(window)
