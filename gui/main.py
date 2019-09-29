@@ -33,14 +33,14 @@ y_lim = 3000  # mm
 
 
 class GuiPart:
-    def __init__(self, master, frame1, frame2, queue, strt_fnc, stp_fnc, go_fnc, hm_fnc, read_laser_fnc):
+    def __init__(self, master, frame1, frame2, queue, strt_fnc, stp_fnc, go_fnc, hm_fnc, read_laser_fnc, switch_fnc):
         self.queue = queue
 
         # buttons
         strt = Button(frame2, text="Start", command=strt_fnc, width=10)
         strt.grid(column=1, row=2, padx=10, pady=10)
         stp = Button(frame2, text="Stop", command=stp_fnc, width=10)
-        stp.grid(column=2, row=2, padx=10, pady=10)
+        stp.grid(column=3, row=2, padx=10, pady=10)
         go = Button(frame1, text="Go", command=go_fnc, width=10)
         go.grid(column=0, row=1, padx=10, pady=10)
         stp1 = Button(frame1, text="Stop", command=stp_fnc, width=10)
@@ -49,6 +49,10 @@ class GuiPart:
         hm.grid(column=3, row=1, padx=10, pady=10)
         read_laser = Button(frame1, text="Read Laser", command=read_laser_fnc, width=10)
         read_laser.grid(column=2, row=1, padx=10, pady=10)
+        switch = Scale(frame2, orient=HORIZONTAL, length=50, to=1, showvalue=False, sliderlength=25, command=switch_fnc)
+        switch.grid(column=0, row=1, padx=10, pady=0)
+        # switch_lbl_txt = "Search direction X-Y"
+
 
 
 class ThreadedClient:
@@ -77,8 +81,10 @@ class ThreadedClient:
         self.scale = scale
         self.laser_read_add = laser_read_add
         self.gui = GuiPart(master, self.frame1, self.frame2, self.queue, self.strt_func, self.stp_func, self.go_func,
-                           self.hm_func,
-                           self.read_laser_fnc)
+                           self.hm_func, self.read_laser_fnc, self.switch_fnc)
+        self.switch_lbl = Label(self.frame2, text="Search direction X-Y")
+        self.switch_lbl.grid(column=0, row=0)
+        self.xy = 1
         self.x_pos = 0
         self.y_pos = 0
         self.x_lim = x_lim
@@ -95,10 +101,18 @@ class ThreadedClient:
             # scan grid
             if self.state == 1:
                 dir = True  # set direction to pos
-                nx = int(nx_entry.get())  # number of data points in x
-                ny = int(ny_entry.get())  # number of data points in y
-                x_res = int(x_res_entry.get())  # measurement resolution in x
-                y_res = int(y_res_entry.get())  # measurement resolution in y
+
+                if self.xy == 1:
+                    nx = int(nx_entry.get())  # number of data points in x
+                    ny = int(ny_entry.get())  # number of data points in y
+                    x_res = int(x_res_entry.get())  # measurement resolution in x
+                    y_res = int(y_res_entry.get())  # measurement resolution in y
+                else:
+                    ny = int(nx_entry.get())  # number of data points in x
+                    nx = int(ny_entry.get())  # number of data points in y
+                    y_res = int(x_res_entry.get())  # measurement resolution in x
+                    x_res = int(y_res_entry.get())  # measurement resolution in y
+
                 data = np.zeros((ny, nx))  # recorded data
 
                 for y in range(0, int(ny)):
@@ -115,8 +129,11 @@ class ThreadedClient:
                         # record laser data
                         data[y][index_x] = round((result.registers[0] - adc_low) / (adc_high - adc_low) *
                                                  (upper_bound - lower_bound) + lower_bound, 2)
+                        if self.xy == 1:
+                            self.motor_flag = 1
+                        else:
+                            self.motor_flag = 0
 
-                        self.motor_flag = 1
                         self.count = x_res
                         self.dir_flag = dir
 
@@ -147,7 +164,11 @@ class ThreadedClient:
                     dir = not dir
 
                     if y != int(ny) - 1:
-                        self.motor_flag = 0
+                        if self.xy == 1:
+                            self.motor_flag = 0
+                        else:
+                            self.motor_flag = 1
+
                         self.count = y_res
                         self.dir_flag = 1
 
@@ -161,7 +182,7 @@ class ThreadedClient:
                 # print(data)
                 dummy = data
                 np.savetxt('data' + datetime.date.today().__str__() + '-' +
-                           datetime.datetime.now().timestamp().__str__() + '.txt', dummy,fmt="%.2f")
+                           datetime.datetime.now().timestamp().__str__() + '.txt', dummy, fmt="%.2f")
 
                 # change state of the process
                 self.state = 0
@@ -309,27 +330,20 @@ class ThreadedClient:
         result = client.read_holding_registers(self.laser_read_add, unit=self.dtc_mb_add)
         print(round((result.registers[0] - adc_low) / (adc_high-adc_low) *
                                              (upper_bound - lower_bound) + lower_bound, 2))
-        # self.count = 100
-        # self.dir_flag = 1
-        # self.running = 1
-        # while self.success != 1 and self.running:
-        #     self.run_motor()
-        # data = np.zeros(100)
-        #
-        # for i in range(0, 100):
-        #     result = client.read_holding_registers(self.laser_read_add, unit=self.dtc_mb_add)
-        #     data[i] = result.registers[0]
-        #     time.clock_settime_ns()
-        #     # time.sleep(0.01)
-        #     time.time_ns()
-        # # save to a txt file
-        # np.savetxt('data' + datetime.date.today().__str__() + '-' +
-        #            datetime.datetime.now().timestamp().__str__() + '.txt', data)
+
+    def switch_fnc(self, value):
+
+        if value == "1":
+            self.xy = 0
+            self.switch_lbl.config(text="Search direction Y-X")
+        else:
+            self.xy = 1
+            self.switch_lbl.config(text="Search direction X-Y")
 
 
 window = Tk()
 window.title("Laser Scanner GUI")
-window.geometry('530x300')
+window.geometry('620x300')
 
 
 def com_callback():
@@ -384,6 +398,7 @@ def donothing2():
 def donothing3():
     messagebox.showinfo("About", "a Tk MessageBox")
 
+
 menubar = Menu(window)
 filemenu = Menu(menubar, tearoff=0)
 filemenu.add_command(label="Communication", command=donothing)
@@ -420,28 +435,29 @@ go_y_entry = Entry(frame1, width=10)
 go_y_entry.grid(column=3, row=0)
 
 lblx = Label(frame2, text="X Resolution (mm):")
-lblx.grid(column=0, row=0, padx=10, pady=10)
+lblx.grid(column=1, row=0, padx=10, pady=10)
 x_res_entry = Entry(frame2, width=10)
-x_res_entry.grid(column=1, row=0)
+x_res_entry.grid(column=2, row=0)
 
 lblx1 = Label(frame2, text="Number of Data Points In X:")
-lblx1.grid(column=2, row=0, padx=10)
+lblx1.grid(column=3, row=0, padx=10)
 nx_entry = Entry(frame2, width=10)
-nx_entry.grid(column=3, row=0, padx=10)
+nx_entry.grid(column=4, row=0, padx=10)
 
 lbly = Label(frame2, text="Y Resolution (mm):")
-lbly.grid(column=0, row=1)
+lbly.grid(column=1, row=1)
 y_res_entry = Entry(frame2, width=10)
-y_res_entry.grid(column=1, row=1)
+y_res_entry.grid(column=2, row=1)
 
 lbly1 = Label(frame2, text="Number of Data Points In Y:")
-lbly1.grid(column=2, row=1)
+lbly1.grid(column=3, row=1)
 ny_entry = Entry(frame2, width=10)
-ny_entry.grid(column=3, row=1)
+ny_entry.grid(column=4, row=1)
 
 # Create a thread for the process
 th_client = ThreadedClient(window, frame1, frame2, plc_mb_add, dtc_mb_add, status_flag_add, run_flag_add,
-                           motor_flag_add, dir_flag_add, stop_flag_add, count_add, count_add1, scale, laser_read_add,x_lim,y_lim)
+                           motor_flag_add, dir_flag_add, stop_flag_add, count_add, count_add1, scale, laser_read_add,
+                           x_lim, y_lim)
 
 # Set Modbus Client
 client = ModbusSerialClient('ascii', port=mb_com, stopbits=1, bytesize=7, parity='E', baudrate=9600)
