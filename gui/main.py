@@ -348,9 +348,7 @@ window.geometry('620x300')
 
 def com_callback():
     global mb_com, dm1, filewin
-    print(mb_com)
     mb_com = dm1.get()
-    print(mb_com)
     filewin.destroy()
 
 
@@ -360,6 +358,7 @@ def donothing():
     dm = Label(filewin, text="COM Port (COMX):")
     dm.grid(column=0, row=0, padx=10, pady=10)
     dm1 = Entry(filewin, width=10)
+    dm1.insert(END, mb_com)
     dm1.grid(column=1, row=0, padx=10)
     dm2 = Button(filewin, text="Ok", width=10, command=com_callback)
     dm2.grid(column=1, row=1, pady=10)
@@ -367,12 +366,8 @@ def donothing():
 
 def range_callback():
     global filewin1, lower_bound_entry, upper_bound_entry, lower_bound, upper_bound
-    print(upper_bound)
-    print(lower_bound)
     upper_bound = upper_bound_entry.get()
     lower_bound = lower_bound_entry.get()
-    print(upper_bound)
-    print(lower_bound)
     filewin1.destroy()
 
 
@@ -382,10 +377,12 @@ def donothing1():
     dmy = Label(filewin1, text="Upper Bound (mm):")
     dmy.grid(column=0, row=0, padx=10, pady=10)
     upper_bound_entry = Entry(filewin1, width=10)
+    upper_bound_entry.insert(END, str(upper_bound))
     upper_bound_entry.grid(column=1, row=0, padx=10)
     dmy1 = Label(filewin1, text="Lower Bound (mm):")
     dmy1.grid(column=0, row=1, padx=10, pady=10)
     lower_bound_entry = Entry(filewin1, width=10)
+    lower_bound_entry.insert(END, str(lower_bound))
     lower_bound_entry.grid(column=1, row=1, padx=10)
     dmy2 = Button(filewin1, text="Ok", width=10, command=range_callback)
     dmy2.grid(column=1, row=2, pady=10)
