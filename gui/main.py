@@ -1,4 +1,5 @@
 from tkinter import *
+from tkinter import messagebox
 from pymodbus.client.sync import ModbusSerialClient
 import time
 import threading
@@ -23,10 +24,13 @@ lower_bound = 290
 upper_bound = 1310
 adc_low = 1600
 adc_high = 9999
+x_lim = 1500  # mm
+y_lim = 3000  # mm
 # m = 1017.6/8359
 # b = 98.128322
 # 9978 1310.5
 # 1603 292.9
+
 
 class GuiPart:
     def __init__(self, master, frame1, frame2, queue, strt_fnc, stp_fnc, go_fnc, hm_fnc, read_laser_fnc):
@@ -55,7 +59,7 @@ class ThreadedClient:
     dir_flag = 0  # direction of a motor, 1 for pos, 0 for neg
 
     def __init__(self, master, frame1, frame2, plc_mb_add, dtc_mb_add, status_flag_add, run_flag_add,
-                 motor_flag_add, dir_flag_add, stop_flag_add, count_add, count_add1, scale, laser_read_add):
+                 motor_flag_add, dir_flag_add, stop_flag_add, count_add, count_add1, scale, laser_read_add,x_lim,y_lim):
 
         self.master = master
         self.frame1 = frame1
@@ -75,6 +79,10 @@ class ThreadedClient:
         self.gui = GuiPart(master, self.frame1, self.frame2, self.queue, self.strt_func, self.stp_func, self.go_func,
                            self.hm_func,
                            self.read_laser_fnc)
+        self.x_pos = 0
+        self.y_pos = 0
+        self.x_lim = x_lim
+        self.y_lim = y_lim
         self.running = 0
         self.thread1 = threading.Thread(target=self.workerThread1)
         self.thread1.start()
@@ -232,8 +240,23 @@ class ThreadedClient:
                 self.state = 0
 
     def strt_func(self):
-        self.running = 1
-        self.state = 1
+        nx = (nx_entry.get())  # number of data points in x
+        ny = (ny_entry.get())  # number of data points in y
+        x_res = (x_res_entry.get())  # measurement resolution in x
+        y_res = (y_res_entry.get())  # measurement resolution in y
+        if (not nx.isdigit()) or (not ny.isdigit()) or (not x_res.isdigit()) or (not y_res.isdigit()):
+            messagebox.showerror("Invalid Input", "Input must be a positive integer")
+        else:
+
+            nx = int(nx)  # number of data points in x
+            ny = int(ny)  # number of data points in y
+            x_res = int(x_res)  # measurement resolution in x
+            y_res = int(y_res)  # measurement resolution in y
+            if ((nx*x_res + self.x_pos) > self.x_lim) or ((ny*y_res + self.y_pos) > self.y_lim):
+                messagebox.showerror("Laser Scanner Limit Exceeding", "Input exceeds Laser Scanner limits")
+            else:
+                self.running = 1
+                self.state = 1
 
     def stp_func(self):
         client.write_coil(self.stop_flag_add, 1, unit=self.plc_mb_add)
@@ -244,8 +267,19 @@ class ThreadedClient:
         self.state = 2
 
     def go_func(self):
-        self.running = 1
-        self.state = 3
+        go_x = (go_x_entry.get())
+        go_y = (go_y_entry.get())
+        if (not go_x.isdigit()) or (not go_y.isdigit()):
+            messagebox.showerror("Invalid Input", "Input must be a positive integer")
+        else:
+
+            go_x = int(go_x)
+            go_y = int(go_y)
+            if ((go_x + self.x_pos) > self.x_lim) or ((go_y + self.y_pos) > self.y_lim):
+                messagebox.showerror("Laser Scanner Limit Exceeding", "Input exceeds Laser Scanner limits")
+            else:
+                self.running = 1
+                self.state = 3
 
     def run_motor(self):
         result = client.read_coils(self.status_flag_add, 1, unit=self.plc_mb_add)
@@ -343,11 +377,24 @@ def donothing1():
     dmy2.grid(column=1, row=2, pady=10)
 
 
+def donothing2():
+    messagebox.showinfo("Source Code", "Visit https://github.com/halil93ibrahim/LaserScanner")
+
+
+def donothing3():
+    messagebox.showinfo("About", "a Tk MessageBox")
+
 menubar = Menu(window)
 filemenu = Menu(menubar, tearoff=0)
 filemenu.add_command(label="Communication", command=donothing)
 filemenu.add_command(label="Measurement Range", command=donothing1)
 menubar.add_cascade(label="Settings", menu=filemenu)
+
+helpmenu = Menu(menubar, tearoff=0)
+helpmenu.add_command(label="Source Code", command=donothing2)
+helpmenu.add_command(label="About", command=donothing3)
+menubar.add_cascade(label="Help", menu=helpmenu)
+
 window.config(menu=menubar)
 
 lblg = Label(window, text="Manual Control")
@@ -394,7 +441,7 @@ ny_entry.grid(column=3, row=1)
 
 # Create a thread for the process
 th_client = ThreadedClient(window, frame1, frame2, plc_mb_add, dtc_mb_add, status_flag_add, run_flag_add,
-                           motor_flag_add, dir_flag_add, stop_flag_add, count_add, count_add1, scale, laser_read_add)
+                           motor_flag_add, dir_flag_add, stop_flag_add, count_add, count_add1, scale, laser_read_add,x_lim,y_lim)
 
 # Set Modbus Client
 client = ModbusSerialClient('ascii', port=mb_com, stopbits=1, bytesize=7, parity='E', baudrate=9600)
