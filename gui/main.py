@@ -147,6 +147,8 @@ class ThreadedClient:
                             break
                     if self.running == 0:
                         break
+                    if not 'x' in locals():
+                        x = -1
 
                     # read laser
                     result = client.read_holding_registers(self.laser_read_add, count=1, unit=self.dtc_mb_add)
