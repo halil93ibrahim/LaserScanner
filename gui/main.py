@@ -261,23 +261,20 @@ class ThreadedClient:
                 self.state = 0
 
     def strt_func(self):
-        nx = (nx_entry.get())  # number of data points in x
-        ny = (ny_entry.get())  # number of data points in y
-        x_res = (x_res_entry.get())  # measurement resolution in x
-        y_res = (y_res_entry.get())  # measurement resolution in y
-        if (not nx.isdigit()) or (not ny.isdigit()) or (not x_res.isdigit()) or (not y_res.isdigit()):
-            messagebox.showerror("Invalid Input", "Input must be a positive integer")
-        else:
+        try:
+            nx = int(nx_entry.get())  # number of data points in x
+            ny = int(ny_entry.get())  # number of data points in y
+            x_res = int(x_res_entry.get())  # measurement resolution in x
+            y_res = int(y_res_entry.get())  # measurement resolution in y
+        except:
+            messagebox.showerror("Invalid Input", "Input must be an integer")
+            return
 
-            nx = int(nx)  # number of data points in x
-            ny = int(ny)  # number of data points in y
-            x_res = int(x_res)  # measurement resolution in x
-            y_res = int(y_res)  # measurement resolution in y
-            if ((nx*x_res + self.x_pos) > self.x_lim) or ((ny*y_res + self.y_pos) > self.y_lim):
-                messagebox.showerror("Laser Scanner Limit Exceeding", "Input exceeds Laser Scanner limits")
-            else:
-                self.running = 1
-                self.state = 1
+        if ((nx*x_res + self.x_pos) > self.x_lim) or ((ny*y_res + self.y_pos) > self.y_lim):
+            messagebox.showerror("Laser Scanner Limit Exceeding", "Input exceeds Laser Scanner limits")
+        else:
+            self.running = 1
+            self.state = 1
 
     def stp_func(self):
         client.write_coil(self.stop_flag_add, 1, unit=self.plc_mb_add)
@@ -288,19 +285,18 @@ class ThreadedClient:
         self.state = 2
 
     def go_func(self):
-        go_x = (go_x_entry.get())
-        go_y = (go_y_entry.get())
-        if (not go_x.isdigit()) or (not go_y.isdigit()):
-            messagebox.showerror("Invalid Input", "Input must be a positive integer")
-        else:
+        try:
+            go_x = int(go_x_entry.get())
+            go_y = int(go_y_entry.get())
+        except:
+            messagebox.showerror("Invalid Input", "Input must be an integer")
+            return
 
-            go_x = int(go_x)
-            go_y = int(go_y)
-            if ((go_x + self.x_pos) > self.x_lim) or ((go_y + self.y_pos) > self.y_lim):
-                messagebox.showerror("Laser Scanner Limit Exceeding", "Input exceeds Laser Scanner limits")
-            else:
-                self.running = 1
-                self.state = 3
+        if ((go_x + self.x_pos) > self.x_lim) or ((go_y + self.y_pos) > self.y_lim):
+            messagebox.showerror("Laser Scanner Limit Exceeding", "Input exceeds Laser Scanner limits")
+        else:
+            self.running = 1
+            self.state = 3
 
     def run_motor(self):
         result = client.read_coils(self.status_flag_add, 1, unit=self.plc_mb_add)
